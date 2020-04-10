@@ -11,7 +11,7 @@ UNAME_S := $(shell uname -s)
 
 ifeq ($(UNAME_S),Linux)
 $(NAME).$(VERSION).so:
-	$(CC)  -c $(CFLAGS) -shared -o $(NAME).so r_time.c  $(LDFLAGS)
+	$(CC) -c $(CFLAGS) -shared -o $(NAME).so r_time.c  $(LDFLAGS)
 endif
 ifeq ($(UNAME_S),Darwin)
 $(NAME).$(VERSION).dylib:
