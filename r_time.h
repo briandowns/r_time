@@ -40,7 +40,7 @@ r_time_init();
 /**
  * r_time_now
  */
-time_t*
+time_t
 r_time_now();
 
 #endif /* _R_TIME_H */

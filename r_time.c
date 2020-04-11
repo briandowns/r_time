@@ -155,11 +155,11 @@ header_callback(char *buffer, size_t size, size_t nitems, void *userdata)
         size_t buffer_len = strlen(buffer);
         char date[buffer_len];
         slice_str(buffer, date, 6, strlen(buffer));
-        printf("%s\n", date);
 
         struct tm tm;
         strptime(date, HTTP_HEADER_FORMAT, &tm);
         e->timestamp = mktime(&tm);
+        printf("header val: %ld\n", e->timestamp);
         pthread_mutex_unlock(&e->mu);
     }
 
@@ -193,7 +193,22 @@ r_time_init()
     curl_global_init(CURL_GLOBAL_ALL);
 }
 
-time_t*
+/**
+ * endpoint_timestamp_count
+ */
+static unsigned int
+endpoint_timestamp_count(struct endpoint *res[ENDPOINT_COUNT])
+{
+    unsigned int count = 0;
+    for (int i = 0; i < ENDPOINT_COUNT; i++) {
+        if (res[i]->timestamp > 0) {
+            count++;
+        }
+    }
+    return count;
+}
+
+time_t
 r_time_now() {
     pthread_t tid[ENDPOINT_COUNT];
 
@@ -205,6 +220,7 @@ r_time_now() {
         
         int err = pthread_create(&tid[i], NULL, pull_one_url, (void *)e);
         if (err != 0) {
+            // this should be replaced for a better message
             fprintf(stderr, "Couldn't run thread number %d, errno %d\n", i, err);
         }
     }
@@ -213,16 +229,24 @@ r_time_now() {
         pthread_join(tid[i], NULL);
     }
 
-    unsigned int count = 0;
-    for (int i = 0; i < ENDPOINT_COUNT; i++) {
-        if (res[i]->timestamp > 0) {
-            count++;
-        }
-        printf("%d\n", count);
-        printf("index: %d, URL: %s, result: %s\n", res[i]->idx, res[i]->url, asctime(localtime(&res[i]->timestamp)));
-        endpoint_free(res[i]);
-    } 
+    time_t final;
+    // make sure we have at leaet 3 responses to process
+    if (endpoint_timestamp_count(res) >= 3) {
+        time_t first = res[0]->timestamp;
+        for (int i = 0; i < ENDPOINT_COUNT; i++) {
+            if (res[i]->timestamp < first) {
+                final = res[i]->timestamp;
+            }
+            // printf("index: %d, URL: %s, result: %s\n", res[i]->idx, res[i]->url, asctime(localtime(&res[i]->timestamp)));
+            endpoint_free(res[i]);
+        } 
+    } else {
+        time_t now;
+        time(&now);
+        return now;
+    }
+    printf("%s\n", asctime(localtime(&final)));
 
-    return NULL;
+    return final;
 }
 
