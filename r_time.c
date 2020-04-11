@@ -213,7 +213,12 @@ r_time_now() {
         pthread_join(tid[i], NULL);
     }
 
-    for (int i = 0; i < ENDPOINT_COUNT; i++) { 
+    unsigned int count = 0;
+    for (int i = 0; i < ENDPOINT_COUNT; i++) {
+        if (res[i]->timestamp > 0) {
+            count++;
+        }
+        printf("%d\n", count);
         printf("index: %d, URL: %s, result: %s\n", res[i]->idx, res[i]->url, asctime(localtime(&res[i]->timestamp)));
         endpoint_free(res[i]);
     } 
