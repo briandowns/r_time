@@ -25,6 +25,7 @@
  * SUCH DAMAGE.
  */
 
+#include <ctype.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
@@ -35,6 +36,10 @@
 #include "r_time.h"
 
 #define ENDPOINT_COUNT 9
+
+#define HTTP_UPPER_HEADER  "Date: " // Date: Sat, 11 Apr 2020 17:42:26 GMT
+#define HTTP_LOWER_HEADER  "date: " // date: Sat, 11 Apr 2020 17:42:26 GMT
+#define HTTP_HEADER_FORMAT "%a, %d %b %Y %H:%M:%S %Z"
 
 const char* const endpoints[ENDPOINT_COUNT] = {
 	"https://facebook.com", 
@@ -55,7 +60,7 @@ struct endpoint {
     pthread_mutex_t mu;
     unsigned int idx;
     char *url;
-    char *timestamp;
+    time_t timestamp;
 };
 
 /**
@@ -72,6 +77,7 @@ endpoint_new(const unsigned int idx, const char *url)
     }
     struct endpoint *e = malloc(sizeof(struct endpoint));
     e->idx = idx;
+    e->url = malloc(strlen(url)+1);
     strcpy(e->url, url);
     pthread_mutex_init(&e->mu, NULL);
     return e;
@@ -81,13 +87,56 @@ endpoint_new(const unsigned int idx, const char *url)
  * endpoint_free frees the memory used
  * by the given endpoint pointer.
  */
-void
+static void
 endpoint_free(struct endpoint *e)
 {
     if (e == NULL) {
         return;
     }
+    if (e->url != NULL) {
+        free(e->url);
+    }
+
     pthread_mutex_destroy(&e->mu);
+}
+
+/**
+ * trim_whitespace
+ */
+static char*
+trim_whitespace(char *str)
+{
+    while(isspace((unsigned char)*str)) {
+        str++;
+    }
+
+    if (*str == 0) {
+        return str;
+    }
+
+    char *end = str + strlen(str) - 1;
+    while(end > str && isspace((unsigned char)*end)) {
+        end--;
+    }
+
+    end[1] = '\0';
+
+    return str;
+}
+
+/**
+ * slice_str
+ */
+static void
+slice_str(const char *str, char *buffer, size_t start, size_t end)
+{
+    size_t j = 0;
+
+    for (size_t i = start; i <= end; ++i) {
+        buffer[j++] = str[i];
+    }
+
+    buffer[j] = 0;
 }
 
 /**
@@ -97,14 +146,21 @@ static size_t
 header_callback(char *buffer, size_t size, size_t nitems, void *userdata)
 {
     struct endpoint *e = (struct endpoint*)userdata;
+    //trim_whitespace(buffer);
 
-    if (strstr(buffer, "Date:") != NULL || strstr(buffer, "date:") != NULL) {
-        printf("found! - %s", buffer);
+    if (strstr(buffer, HTTP_UPPER_HEADER) != NULL || strstr(buffer, HTTP_LOWER_HEADER) != NULL) {
         pthread_mutex_lock(&e->mu);
-        e->timestamp = malloc(strlen(buffer)+1);
-        strcpy(e->timestamp, buffer);
+
+        trim_whitespace(buffer);
+        size_t buffer_len = strlen(buffer);
+        char date[buffer_len];
+        slice_str(buffer, date, 6, strlen(buffer));
+        printf("%s\n", date);
+
+        struct tm tm;
+        strptime(date, HTTP_HEADER_FORMAT, &tm);
+        e->timestamp = mktime(&tm);
         pthread_mutex_unlock(&e->mu);
-        
     }
 
     return nitems * size;
@@ -116,7 +172,6 @@ header_callback(char *buffer, size_t size, size_t nitems, void *userdata)
 static void*
 pull_one_url(void *data)
 {
-    printf("here\n");
     CURL *curl = curl_easy_init();
 
     struct endpoint *e = (struct endpoint*)data;
@@ -146,8 +201,7 @@ r_time_now() {
     
     for (int i = 0; i < ENDPOINT_COUNT; i++) {
         struct endpoint *e = endpoint_new(i, endpoints[i]);
-        //res[i] = e;
-        //printf("url: %s, idx: %d\n", e->url, e->idx);
+        res[i] = e;
         
         int err = pthread_create(&tid[i], NULL, pull_one_url, (void *)e);
         if (err != 0) {
@@ -155,14 +209,13 @@ r_time_now() {
         }
     }
 
-    /* now wait for all threads to terminate */ 
     for (int i = 0; i < ENDPOINT_COUNT; i++) {
         pthread_join(tid[i], NULL);
-        fprintf(stderr, "Thread %d terminated\n", i);
     }
 
     for (int i = 0; i < ENDPOINT_COUNT; i++) { 
-        printf("index: %d, URL: %s, result: %s\n", res[i]->idx, res[i]->url, res[i]->timestamp);
+        printf("index: %d, URL: %s, result: %s\n", res[i]->idx, res[i]->url, asctime(localtime(&res[i]->timestamp)));
+        endpoint_free(res[i]);
     } 
 
     return NULL;

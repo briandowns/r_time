@@ -31,7 +31,8 @@
 #include <time.h>
 
 /**
- * r_time_init
+ * r_time_init initializes the underlying data and
+ * structures used to get and process remote time.
  */
 void
 r_time_init();

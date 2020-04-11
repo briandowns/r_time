@@ -9,8 +9,8 @@ tests/log.c
 
 .vscode
 
-bin/*
+bin
 
 tmp/
 r_time
-
+now
