@@ -36,9 +36,10 @@
 #include "r_time.h"
 
 #define ENDPOINT_COUNT 9
+#define MIN_RESPONSES  3
 
-#define HTTP_UPPER_HEADER  "Date: " // Date: Sat, 11 Apr 2020 17:42:26 GMT
-#define HTTP_LOWER_HEADER  "date: " // date: Sat, 11 Apr 2020 17:42:26 GMT
+#define HTTP_UPPER_HEADER  "Date: " // e.g. Date: Sat, 11 Apr 2020 17:42:26 GMT
+#define HTTP_LOWER_HEADER  "date: " // e.g. date: Sat, 11 Apr 2020 17:42:26 GMT
 #define HTTP_HEADER_FORMAT "%a, %d %b %Y %H:%M:%S %Z"
 
 const char* const endpoints[ENDPOINT_COUNT] = {
@@ -148,7 +149,7 @@ header_callback(char *buffer, size_t size, size_t nitems, void *userdata)
     struct endpoint *e = (struct endpoint*)userdata;
     //trim_whitespace(buffer);
 
-    if (strstr(buffer, HTTP_UPPER_HEADER) != NULL || strstr(buffer, HTTP_LOWER_HEADER) != NULL) {
+    if (strstr(buffer, HTTP_UPPER_HEADER) != 0 || strstr(buffer, HTTP_LOWER_HEADER) != 0) {
         pthread_mutex_lock(&e->mu);
 
         trim_whitespace(buffer);
@@ -159,7 +160,7 @@ header_callback(char *buffer, size_t size, size_t nitems, void *userdata)
         struct tm tm;
         strptime(date, HTTP_HEADER_FORMAT, &tm);
         e->timestamp = mktime(&tm);
-        printf("header val: %ld\n", e->timestamp);
+        printf("url: %s - timestamp: %ld\n", e->url, e->timestamp);
         pthread_mutex_unlock(&e->mu);
     }
 
@@ -218,10 +219,8 @@ r_time_now() {
         struct endpoint *e = endpoint_new(i, endpoints[i]);
         res[i] = e;
         
-        int err = pthread_create(&tid[i], NULL, pull_one_url, (void *)e);
-        if (err != 0) {
-            // this should be replaced for a better message
-            fprintf(stderr, "Couldn't run thread number %d, errno %d\n", i, err);
+        if (pthread_create(&tid[i], NULL, pull_one_url, (void *)e) != 0) {
+            perror("failed to create thread");
         }
     }
 
@@ -229,24 +228,21 @@ r_time_now() {
         pthread_join(tid[i], NULL);
     }
 
-    time_t final;
+    
     // make sure we have at leaet 3 responses to process
-    if (endpoint_timestamp_count(res) >= 3) {
-        time_t first = res[0]->timestamp;
+    if (endpoint_timestamp_count(res) >= MIN_RESPONSES) {
+        time_t smallest = res[0]->timestamp;
         for (int i = 0; i < ENDPOINT_COUNT; i++) {
-            if (res[i]->timestamp < first) {
-                final = res[i]->timestamp;
+            if (res[i]->timestamp < smallest) {
+                smallest = res[i]->timestamp;
             }
-            // printf("index: %d, URL: %s, result: %s\n", res[i]->idx, res[i]->url, asctime(localtime(&res[i]->timestamp)));
             endpoint_free(res[i]);
         } 
+        return smallest;
     } else {
         time_t now;
         time(&now);
         return now;
     }
-    printf("%s\n", asctime(localtime(&final)));
-
-    return final;
 }
 
