@@ -14,3 +14,4 @@ bin
 tmp/
 r_time
 now
+main.c
