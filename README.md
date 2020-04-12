@@ -1,6 +1,6 @@
 # r_time
 
-r_time is a library to retrieve time from remote servers. This is a port of [tidwall's](http://github.com/tidwall) Go [](https://github.com/tidwall/rtime).
+r_time is a library to retrieve time from remote servers. This is a port of [tidwall's](http://github.com/tidwall) Go [package](https://github.com/tidwall/rtime).
 
 The way the library works is that it iterates an array of public servers and queries them, extracts the "Date|date" header field, converts the string value to an `time_t` value and returns it to the caller.
 
