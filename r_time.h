@@ -38,7 +38,8 @@ void
 r_time_init();
 
 /**
- * r_time_now
+ * r_time_now returns the current remote time. If the 
+ * call fails, the a time_t is returned set to 0.
  */
 time_t
 r_time_now();

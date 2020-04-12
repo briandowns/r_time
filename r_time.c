@@ -55,10 +55,11 @@ const char* const endpoints[ENDPOINT_COUNT] = {
 };
 
 /**
- * endpoint
+ * endpoint contains the index in the results 
+ * array it belongs to, the url to be queried,
+ * and the retrieved timestamp.
  */
 struct endpoint {
-    pthread_mutex_t mu;
     unsigned int idx;
     char *url;
     time_t timestamp;
@@ -80,11 +81,8 @@ endpoint_new(const unsigned int idx, const char *url)
     e->idx = idx;
     e->url = malloc(strlen(url)+1);
     strcpy(e->url, url);
-    pthread_mutex_init(&e->mu, NULL);
     return e;
 }
-
-pthread_mutex_t mu;
 
 /**
  * endpoint_free frees the memory used
@@ -99,8 +97,6 @@ endpoint_free(struct endpoint *e)
     if (e->url != NULL) {
         free(e->url);
     }
-
-    pthread_mutex_destroy(&e->mu);
 }
 
 /**
@@ -138,7 +134,9 @@ slice_str(const char *str, char *buffer, size_t start, size_t end)
 }
 
 /**
- * header_callback
+ * header_callback processes the header value of the response. It 
+ * gets the date field if it exists, converts the string value to a 
+ * time_t value, and assigns it to the results array.
  */
 static size_t 
 header_callback(char *buffer, size_t size, size_t nitems, void *userdata)
@@ -147,8 +145,6 @@ header_callback(char *buffer, size_t size, size_t nitems, void *userdata)
     trim_whitespace(buffer);
 
     if (strstr(buffer, HTTP_UPPER_HEADER) != 0 || strstr(buffer, HTTP_LOWER_HEADER) != 0) {
-        pthread_mutex_lock(&e->mu);
-
         trim_whitespace(buffer);
         size_t buffer_len = strlen(buffer);
         char date[buffer_len];
@@ -157,18 +153,17 @@ header_callback(char *buffer, size_t size, size_t nitems, void *userdata)
         struct tm tm;
         strptime(date, HTTP_HEADER_FORMAT, &tm);
         e->timestamp = mktime(&tm);
-        printf("url: %s - timestamp: %ld\n", e->url, e->timestamp);
-        pthread_mutex_unlock(&e->mu);
     }
 
     return nitems * size;
 }
 
 /**
- * pull_one_url
+ * retrieve_timestamp makes a request to the given URL in an
+ * attempt to retrieve the date header.
  */
 static void*
-pull_one_url(void *data)
+retrieve_timestamp(void *data)
 {
     CURL *curl = curl_easy_init();
 
@@ -216,17 +211,15 @@ r_time_now() {
         struct endpoint *e = endpoint_new(i, endpoints[i]);
         res[i] = e;
         
-        if (pthread_create(&tid[i], NULL, pull_one_url, (void *)e) != 0) {
-            perror("failed to create thread");
+        if (pthread_create(&tid[i], NULL, retrieve_timestamp, (void *)e) != 0) {
+            perror("failed to create thread. ...continueing");
         }
     }
 
     for (int i = 0; i < ENDPOINT_COUNT; i++) {
         pthread_join(tid[i], NULL);
     }
-
     
-    // make sure we have at leaet 3 responses to process
     if (endpoint_timestamp_count(res) >= MIN_RESPONSES) {
         time_t smallest = res[0]->timestamp;
         for (int i = 0; i < ENDPOINT_COUNT; i++) {
@@ -237,9 +230,7 @@ r_time_now() {
         } 
         return smallest;
     } else {
-        time_t now;
-        time(&now);
-        return now;
+        return (time_t)0L;
     }
 }
 
