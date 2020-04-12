@@ -84,6 +84,8 @@ endpoint_new(const unsigned int idx, const char *url)
     return e;
 }
 
+pthread_mutex_t mu;
+
 /**
  * endpoint_free frees the memory used
  * by the given endpoint pointer.
@@ -102,7 +104,8 @@ endpoint_free(struct endpoint *e)
 }
 
 /**
- * trim_whitespace
+ * trim_whitespace removes any white space on
+ * the given string.
  */
 static char*
 trim_whitespace(char *str)
@@ -110,33 +113,27 @@ trim_whitespace(char *str)
     while(isspace((unsigned char)*str)) {
         str++;
     }
-
     if (*str == 0) {
         return str;
     }
-
     char *end = str + strlen(str) - 1;
     while(end > str && isspace((unsigned char)*end)) {
         end--;
     }
-
     end[1] = '\0';
-
     return str;
 }
 
 /**
- * slice_str
+ * slice_str removes a portion of the given string.
  */
 static void
 slice_str(const char *str, char *buffer, size_t start, size_t end)
 {
     size_t j = 0;
-
     for (size_t i = start; i <= end; ++i) {
         buffer[j++] = str[i];
     }
-
     buffer[j] = 0;
 }
 
@@ -147,7 +144,7 @@ static size_t
 header_callback(char *buffer, size_t size, size_t nitems, void *userdata)
 {
     struct endpoint *e = (struct endpoint*)userdata;
-    //trim_whitespace(buffer);
+    trim_whitespace(buffer);
 
     if (strstr(buffer, HTTP_UPPER_HEADER) != 0 || strstr(buffer, HTTP_LOWER_HEADER) != 0) {
         pthread_mutex_lock(&e->mu);
