@@ -1,10 +1,13 @@
 # r_time
 
-r_time 0.1.0 is a binary...
+r_time is a library to retrieve time from remote servers. This is a port of [tidwall's](http://github.com/tidwall) Go [](https://github.com/tidwall/rtime).
 
 ## Build
 
-## Test
+```sh
+make 
+```
 
 ## Contact
 
+[@bdowns328](http://twitter.com/bdowns328)

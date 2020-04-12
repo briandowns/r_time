@@ -38,6 +38,7 @@
 #define ENDPOINT_COUNT 9
 #define MIN_RESPONSES  3
 
+#define HTTP_TIMEOUT       2L // seconds
 #define HTTP_UPPER_HEADER  "Date: " // e.g. Date: Sat, 11 Apr 2020 17:42:26 GMT
 #define HTTP_LOWER_HEADER  "date: " // e.g. date: Sat, 11 Apr 2020 17:42:26 GMT
 #define HTTP_HEADER_FORMAT "%a, %d %b %Y %H:%M:%S %Z"
@@ -170,6 +171,7 @@ retrieve_timestamp(void *data)
     struct endpoint *e = (struct endpoint*)data;
 
     curl_easy_setopt(curl, CURLOPT_URL, e->url);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, HTTP_TIMEOUT);
     curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
     curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 1L);
     curl_easy_setopt(curl, CURLOPT_HEADERDATA, e);
