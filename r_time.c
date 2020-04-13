@@ -46,15 +46,15 @@
  * endpoints is an array of sites to be queried.
  */
 const char* const endpoints[ENDPOINT_COUNT] = {
-	"https://facebook.com", 
+    "https://facebook.com", 
     "https://microsoft.com", 
     "https://amazon.com", 
     "https://google.com",
-	"https://youtube.com", 
+    "https://youtube.com", 
     "https://twitter.com", 
     "https://reddit.com", 
     "https://netflix.com",
-	"https://bing.com"
+    "https://bing.com"
 };
 
 /**
