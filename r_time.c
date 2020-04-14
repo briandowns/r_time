@@ -100,6 +100,7 @@ endpoint_free(struct endpoint *e)
     if (e->url != NULL) {
         free(e->url);
     }
+    free(e);
 }
 
 /**
